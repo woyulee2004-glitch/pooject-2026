@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工程專案管理系統 - 草圖設計工作室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-slate-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                    <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide">工程與專案管理系統</h1>
+                    <p class="text-xs text-slate-400">草圖設計工作室 | 案場進度與金流追蹤</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> 新增專案
+                </button>
+                <button onclick="exportCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow transition">
+                    <i data-lucide="download" class="w-4 h-4"></i> 匯出 CSV
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+        
+        <!-- 金額統計切換模式 -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-200/60 p-3 rounded-xl border border-slate-300">
+            <div class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <i data-lucide="calculator" class="w-4 h-4 text-indigo-600"></i>
+                <span>統計金額顯示模式：</span>
+            </div>
+            <div class="inline-flex rounded-lg p-1 bg-white border border-slate-300 shadow-sm text-xs font-medium">
+                <button id="calc-untaxed-btn" onclick="setTaxCalcMode('untaxed')" class="px-3 py-1.5 rounded-md bg-indigo-600 text-white transition">未稅金額統計</button>
+                <button id="calc-taxed-btn" onclick="setTaxCalcMode('taxed')" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">含稅金額統計 (含5%營業稅)</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Metrics Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">總專案數</p>
+                    <h3 id="stat-total" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                </div>
+                <div class="bg-blue-50 text-blue-600 p-3 rounded-lg"><i data-lucide="folder-kanban" class="w-6 h-6"></i></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">進行中專案</p>
+                    <h3 id="stat-progress" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+                </div>
+                <div class="bg-amber-50 text-amber-600 p-3 rounded-lg"><i data-lucide="clock" class="w-6 h-6"></i></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">已竣工專案</p>
+                    <h3 id="stat-completed" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
+                </div>
+                <div class="bg-emerald-50 text-emerald-600 p-3 rounded-lg"><i data-lucide="check-circle-2" class="w-6 h-6"></i></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">總金額 (<span class="calc-label">未稅</span>)</p>
+                    <h3 id="stat-total-amount" class="text-xl font-bold text-indigo-600 mt-1">$0</h3>
+                </div>
+                <div class="bg-indigo-50 text-indigo-600 p-3 rounded-lg"><i data-lucide="dollar-sign" class="w-6 h-6"></i></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">待收款 / 未收 (<span class="calc-label">未稅</span>)</p>
+                    <h3 id="stat-unpaid-amount" class="text-xl font-bold text-rose-600 mt-1">$0</h3>
+                </div>
+                <div class="bg-rose-50 text-rose-600 p-3 rounded-lg"><i data-lucide="wallet" class="w-6 h-6"></i></div>
+            </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="relative flex-grow md:w-72">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input type="text" id="search-input" oninput="filterData()" placeholder="搜尋專案名稱、位置..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <select id="filter-status" onchange="filterData()" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">所有狀態</option>
+                    <option value="進行中">進行中</option>
+                    <option value="待竣工">待竣工</option>
+                    <option value="已竣工">已竣工</option>
+                    <option value="尚未開始">尚未開始</option>
+                </select>
+                <select id="filter-payment" onchange="filterData()" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">所有收款狀態</option>
+                    <option value="已收款">已收款</option>
+                    <option value="未收款">未收款</option>
+                    <option value="已收訂金">已收訂金</option>
+                    <option value="60%">60%</option>
+                </select>
+            </div>
+            <div class="text-xs text-slate-500">
+                顯示 <span id="record-count" class="font-bold text-slate-700">0</span> 筆專案資料
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <th class="py-3 px-4 font-semibold">專案名稱</th>
+                            <th class="py-3 px-4 font-semibold">位置</th>
+                            <th class="py-3 px-4 font-semibold">金額 (未稅/含稅)</th>
+                            <th class="py-3 px-4 font-semibold">報價日期</th>
+                            <th class="py-3 px-4 font-semibold">PO日期</th>
+                            <th class="py-3 px-4 font-semibold">狀態</th>
+                            <th class="py-3 px-4 font-semibold">發票狀態</th>
+                            <th class="py-3 px-4 font-semibold">收款狀態</th>
+                            <th class="py-3 px-4 font-semibold">備註 / 支薪</th>
+                            <th class="py-3 px-4 font-semibold">訂單資料夾</th>
+                            <th class="py-3 px-4 font-semibold">作業路徑</th>
+                            <th class="py-3 px-4 font-semibold text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-200 text-sm">
+                        <!-- Dynamic rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Form for Add/Edit -->
+    <div id="project-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-200">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+                <h3 id="modal-title" class="text-lg font-bold">新增專案資料</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="project-form" onsubmit="saveProject(event)" class="p-6 space-y-4">
+                <input type="hidden" id="project-id">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">專案名稱 *</label>
+                        <input type="text" id="name" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：全野環控">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">位置 / 案場 *</label>
+                        <input type="text" id="location" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：20P1">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">收款金額</label>
+                        <input type="number" id="amount" oninput="calculateModalTax()" min="0" step="1" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="輸入金額">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">計稅選項</label>
+                        <select id="tax_type" onchange="calculateModalTax()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="untaxed">未稅 (加5%營業稅)</option>
+                            <option value="taxed">含稅 (內含5%營業稅)</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-2 bg-slate-100 p-3 rounded-lg text-xs flex justify-around text-slate-600 border border-slate-200">
+                        <div>未稅: <span id="modal-calc-untaxed" class="font-bold text-slate-800">$0</span></div>
+                        <div>營業稅 (5%): <span id="modal-calc-tax" class="font-bold text-slate-800">$0</span></div>
+                        <div>含稅總額: <span id="modal-calc-taxed" class="font-bold text-indigo-700">$0</span></div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">報價日期</label>
+                        <input type="date" id="quote_date" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">PO日期</label>
+                        <input type="date" id="po_date" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">狀態</label>
+                        <select id="status" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="進行中">進行中</option>
+                            <option value="待竣工">待竣工</option>
+                            <option value="已竣工">已竣工</option>
+                            <option value="尚未開始">尚未開始</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">發票狀態</label>
+                        <select id="invoice_status" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="未開發票">未開發票</option>
+                            <option value="已開訂金發票">已開訂金發票</option>
+                            <option value="已開發票">已開發票</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">收款狀態</label>
+                        <select id="payment_status" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="未收款">未收款</option>
+                            <option value="已收訂金">已收訂金</option>
+                            <option value="已收款">已收款</option>
+                            <option value="60%">60%</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">備註 / 分包與勞務</label>
+                        <input type="text" id="remarks" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：已付分務、已付勞務">
+                    </div>
+                </div>
+                
+                <div class="space-y-3 pt-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">訂單資料夾路徑 (支援網址或網路路徑)</label>
+                        <input type="text" id="order_path" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="\\PROJSVR38...\OrderFolder 或 https://...">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">作業完成路徑 (UNC 路徑)</label>
+                        <input type="text" id="path" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="\\PROJSVR38.tw.tsmc.com\...">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow transition">儲存專案</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        &copy; 2026 草圖設計工作室 | 工程專案與案場管理系統
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const defaultProjects = [
+            { id: '1', name: '全野環控', location: '20P1', amount: 0, tax_type: 'untaxed', quote_date: '2023-07-15', po_date: '2023-01-01', status: '已竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付分務', order_path: '', path: '\\PROJSVR38.tw.tsmc.com\F20P1_SMP_Design\99-Site廠商作業區\01 WIP工作區\00_tsmc\3D竣工資料夾\COLD' },
+            { id: '2', name: '全野環控', location: '20P2', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2024-01-01', status: '待竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '' },
+            { id: '3', name: '全野環控', location: '22P1', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2025-01-01', status: '待竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '' },
+            { id: '4', name: '全野環控', location: '22P2', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2025-01-01', status: '待竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '' },
+            { id: '5', name: '華戀科技', location: '22P1', amount: 0, tax_type: 'untaxed', quote_date: '2024-10-08', po_date: '2024-10-08', status: '已竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '\\projsvrt24\203000_667\99-Site廠商作業區\01 WIP工作區\00_tsmc\3D 竣工資料夾\VOC' },
+            { id: '6', name: '華戀科技', location: '22P2', amount: 0, tax_type: 'untaxed', quote_date: '2024-10-08', po_date: '2024-10-08', status: '已竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '' },
+            { id: '7', name: '華戀科技', location: 'AP8-P1', amount: 0, tax_type: 'untaxed', quote_date: '2025-03-24', po_date: '2025-03-24', status: '待竣工', invoice_status: '已開訂金發票', payment_status: '已收訂金', remarks: '未付', order_path: '', path: '\\Projsvr38\AP8_SMP_Design\99-Site廠商作業區\01 WIP工作區\23_VOC\竣工資料' },
+            { id: '8', name: '沃亞科技', location: '22P1', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2025-01-01', status: '待竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '' },
+            { id: '9', name: '沃亞科技', location: '22P2', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2025-01-01', status: '進行中', invoice_status: '未開發票', payment_status: '未收款', remarks: '未付', order_path: '', path: '' },
+            { id: '10', name: '沃亞科技', location: '20P1', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2025-01-01', status: '已竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '\\Projsvr38.tw.tsmc.com\f20p1_smp_design\99-site廠商作業區\01 WIP工作區\Woya' },
+            { id: '11', name: '沃亞科技', location: '20P2', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2025-01-01', status: '已竣工', invoice_status: '已開發票', payment_status: '已收款', remarks: '已付勞務', order_path: '', path: '\\Projsvr38.tw.tsmc.com\F20p2_SMP\99-Site廠商作業區\01 WIP工作區\Woya' },
+            { id: '12', name: '華戀科技', location: '22P3', amount: 0, tax_type: 'untaxed', quote_date: '2025-11-19', po_date: '2025-09-09', status: '進行中', invoice_status: '已開訂金發票', payment_status: '60%', remarks: '未付', order_path: '', path: '' },
+            { id: '13', name: '沃亞科技', location: '22P3', amount: 0, tax_type: 'untaxed', quote_date: '2025-11-04', po_date: '2026-01-01', status: '尚未開始', invoice_status: '未開發票', payment_status: '未收款', remarks: '未付', order_path: '', path: '' },
+            { id: '14', name: '沃亞科技', location: '22P4', amount: 0, tax_type: 'untaxed', quote_date: '2026-04-15', po_date: '2026-01-01', status: '尚未開始', invoice_status: '未開發票', payment_status: '未收款', remarks: '未付', order_path: '', path: '' },
+            { id: '15', name: '全野環控', location: '18P9', amount: 0, tax_type: 'untaxed', quote_date: '2026-05-23', po_date: '2026-05-18', status: '進行中', invoice_status: '未開發票', payment_status: '未收款', remarks: '', order_path: '', path: '' },
+            { id: '16', name: '華戀科技', location: '22P4', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2026-07-01', status: '進行中', invoice_status: '未開發票', payment_status: '未收款', remarks: '', order_path: '', path: '' },
+            { id: '17', name: '華戀科技', location: '20P4', amount: 0, tax_type: 'untaxed', quote_date: '', po_date: '2026-07-01', status: '進行中', invoice_status: '未開發票', payment_status: '未收款', remarks: '', order_path: '', path: '' }
+        ];
+
+        let projects = JSON.parse(localStorage.getItem('studio_projects')) || defaultProjects;
+        let currentTaxMode = 'untaxed';
+
+        function init() {
+            lucide.createIcons();
+            renderTable(projects);
+            updateStats();
+        }
+
+        function getProjectAmounts(p) {
+            const rawAmount = parseFloat(p.amount) || 0;
+            let untaxed = 0;
+            let taxed = 0;
+
+            if (p.tax_type === 'taxed') {
+                taxed = rawAmount;
+                untaxed = Math.round(rawAmount / 1.05);
+            } else {
+                untaxed = rawAmount;
+                taxed = Math.round(rawAmount * 1.05);
+            }
+            return { untaxed, taxed };
+        }
+
+        function setTaxCalcMode(mode) {
+            currentTaxMode = mode;
+            const untaxedBtn = document.getElementById('calc-untaxed-btn');
+            const taxedBtn = document.getElementById('calc-taxed-btn');
+
+            if (mode === 'untaxed') {
+                untaxedBtn.className = "px-3 py-1.5 rounded-md bg-indigo-600 text-white transition";
+                taxedBtn.className = "px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition";
+            } else {
+                taxedBtn.className = "px-3 py-1.5 rounded-md bg-indigo-600 text-white transition";
+                untaxedBtn.className = "px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition";
+            }
+
+            document.querySelectorAll('.calc-label').forEach(el => {
+                el.innerText = mode === 'untaxed' ? '未稅' : '含稅';
+            });
+
+            updateStats();
+        }
+
+        function renderData(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            
+            document.getElementById('record-count').innerText = data.length;
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400">目前沒有符合條件的專案資料</td></tr>`;
+                return;
+            }
+
+            data.forEach(p => {
+                let statusColor = 'bg-slate-100 text-slate-700';
+                if (p.status === '已竣工') statusColor = 'bg-emerald-100 text-emerald-800';
+                if (p.status === '進行中') statusColor = 'bg-amber-100 text-amber-800';
+                if (p.status === '待竣工') statusColor = 'bg-blue-100 text-blue-800';
+                if (p.status === '尚未開始') statusColor = 'bg-slate-100 text-slate-600';
+
+                let paymentColor = 'bg-slate-100 text-slate-700';
+                if (p.payment_status === '已收款') paymentColor = 'bg-emerald-100 text-emerald-800';
+                if (p.payment_status === '未收款') paymentColor = 'bg-rose-100 text-rose-800';
+                if (p.payment_status === '已收訂金' || p.payment_status === '60%') paymentColor = 'bg-amber-100 text-amber-800';
+
+                // 訂單資料夾按鈕 (點擊直接連線或複製開啟)
+                let orderPathHtml = p.order_path ? 
+                    `<button onclick="openFolderConnection('${p.order_path.replace(/\\/g, '\\\\')}')" title="點擊直接連接/開啟訂單資料夾" class="text-emerald-700 hover:text-emerald-900 font-mono text-xs truncate max-w-[130px] block bg-emerald-50 px-2 py-1 rounded border border-emerald-200 flex items-center gap-1 shadow-sm hover:bg-emerald-100 transition">
+                        <i data-lucide="folder-open" class="w-3 h-3 flex-shrink-0 text-emerald-600"></i> <span class="truncate underline">${p.order_path}</span>
+                     </button>` : 
+                    `<span class="text-slate-400 text-xs italic">無訂單路徑</span>`;
+
+                let pathHtml = p.path ? 
+                    `<button onclick="openFolderConnection('${p.path.replace(/\\/g, '\\\\')}')" title="點擊連接作業路徑" class="text-indigo-600 hover:text-indigo-800 font-mono text-xs truncate max-w-[130px] block bg-indigo-50 px-2 py-1 rounded border border-indigo-100 flex items-center gap-1">
+                        <i data-lucide="folder" class="w-3 h-3 flex-shrink-0"></i> <span class="truncate">${p.path}</span>
+                     </button>` : 
+                    `<span class="text-slate-400 text-xs italic">無路徑</span>`;
+
+                const amounts = getProjectAmounts(p);
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-medium text-slate-900">${p.name}</td>
+                    <td class="py-3 px-4 font-mono text-xs text-slate-600">${p.location}</td>
+                    <td class="py-3 px-4 text-xs">
+                        <div class="font-semibold text-slate-800">$${amounts.untaxed.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">(未稅)</span></div>
+                        <div class="text-[11px] text-slate-500">$${amounts.taxed.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">(含稅)</span></div>
+                    </td>
+                    <td class="py-3 px-4 text-xs text-slate-600">${p.quote_date || '-'}</td>
+                    <td class="py-3 px-4 text-xs text-slate-600">${p.po_date || '-'}</td>
+                    <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusColor}">${p.status}</span></td>
+                    <td class="py-3 px-4 text-xs text-slate-700">${p.invoice_status}</td>
+                    <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-medium ${paymentColor}">${p.payment_status}</span></td>
+                    <td class="py-3 px-4 text-xs text-slate-600">${p.remarks || '-'}</td>
+                    <td class="py-3 px-4">${orderPathHtml}</td>
+                    <td class="py-3 px-4">${pathHtml}</td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                            <button onclick="editProject('${p.id}')" class="text-slate-500 hover:text-indigo-600 p-1 rounded transition" title="編輯"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                            <button onclick="deleteProject('${p.id}')" class="text-slate-500 hover:text-rose-600 p-1 rounded transition" title="刪除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function renderTable(data) {
+            renderData(data);
+        }
+
+        function updateStats() {
+            document.getElementById('stat-total').innerText = projects.length;
+            document.getElementById('stat-progress').innerText = projects.filter(p => p.status === '進行中').length;
+            document.getElementById('stat-completed').innerText = projects.filter(p => p.status === '已竣工').length;
+
+            let totalSum = 0;
+            let unpaidSum = 0;
+
+            projects.forEach(p => {
+                const amounts = getProjectAmounts(p);
+                const val = (currentTaxMode === 'untaxed') ? amounts.untaxed : amounts.taxed;
+                totalSum += val;
+
+                if (p.payment_status === '未收款') {
+                    unpaidSum += val;
+                } else if (p.payment_status === '已收訂金') {
+                    unpaidSum += (val * 0.7);
+                } else if (p.payment_status === '60%') {
+                    unpaidSum += (val * 0.4);
+                }
+            });
+
+            document.getElementById('stat-total-amount').innerText = '$' + Math.round(totalSum).toLocaleString();
+            document.getElementById('stat-unpaid-amount').innerText = '$' + Math.round(unpaidSum).toLocaleString();
+        }
+
+        function filterData() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const statusFilter = document.getElementById('filter-status').value;
+            const paymentFilter = document.getElementById('filter-payment').value;
+
+            const filtered = projects.filter(p => {
+                const matchQuery = p.name.toLowerCase().includes(query) || p.location.toLowerCase().includes(query) || (p.remarks && p.remarks.toLowerCase().includes(query));
+                const matchStatus = statusFilter === '' || p.status === statusFilter;
+                const matchPayment = paymentFilter === '' || p.payment_status === paymentFilter;
+                return matchQuery && matchStatus && matchPayment;
+            });
+
+            renderData(filtered);
+        }
+
+        function calculateModalTax() {
+            const amountInput = parseFloat(document.getElementById('amount').value) || 0;
+            const taxType = document.getElementById('tax_type').value;
+
+            let untaxed = 0;
+            let tax = 0;
+            let taxed = 0;
+
+            if (taxType === 'taxed') {
+                taxed = amountInput;
+                untaxed = Math.round(amountInput / 1.05);
+                tax = taxed - untaxed;
+            } else {
+                untaxed = amountInput;
+                tax = Math.round(amountInput * 0.05);
+                taxed = untaxed + tax;
+            }
+
+            document.getElementById('modal-calc-untaxed').innerText = '$' + untaxed.toLocaleString();
+            document.getElementById('modal-calc-tax').innerText = '$' + tax.toLocaleString();
+            document.getElementById('modal-calc-taxed').innerText = '$' + taxed.toLocaleString();
+        }
+
+        function openModal(id = null) {
+            document.getElementById('project-modal').classList.remove('hidden');
+            document.getElementById('project-modal').classList.add('flex');
+            if (id) {
+                document.getElementById('modal-title').innerText = '編輯專案資料';
+                const p = projects.find(item => item.id === id);
+                if (p) {
+                    document.getElementById('project-id').value = p.id;
+                    document.getElementById('name').value = p.name;
+                    document.getElementById('location').value = p.location;
+                    document.getElementById('amount').value = p.amount || '';
+                    document.getElementById('tax_type').value = p.tax_type || 'untaxed';
+                    document.getElementById('quote_date').value = p.quote_date || '';
+                    document.getElementById('po_date').value = p.po_date || '';
+                    document.getElementById('status').value = p.status;
+                    document.getElementById('invoice_status').value = p.invoice_status;
+                    document.getElementById('payment_status').value = p.payment_status;
+                    document.getElementById('remarks').value = p.remarks || '';
+                    document.getElementById('order_path').value = p.order_path || '';
+                    document.getElementById('path').value = p.path || '';
+                }
+            } else {
+                document.getElementById('modal-title').innerText = '新增專案資料';
+                document.getElementById('project-form').reset();
+                document.getElementById('project-id').value = '';
+                document.getElementById('tax_type').value = 'untaxed';
+            }
+            calculateModalTax();
+        }
+
+        function closeModal() {
+            document.getElementById('project-modal').classList.remove('flex');
+            document.getElementById('project-modal').classList.add('hidden');
+        }
+
+        function saveProject(e) {
+            e.preventDefault();
+            const id = document.getElementById('project-id').value;
+            const projectData = {
+                id: id ? id : Date.now().toString(),
+                name: document.getElementById('name').value,
+                location: document.getElementById('location').value,
+                amount: parseFloat(document.getElementById('amount').value) || 0,
+                tax_type: document.getElementById('tax_type').value,
+                quote_date: document.getElementById('quote_date').value,
+                po_date: document.getElementById('po_date').value,
+                status: document.getElementById('status').value,
+                invoice_status: document.getElementById('invoice_status').value,
+                payment_status: document.getElementById('payment_status').value,
+                remarks: document.getElementById('remarks').value,
+                order_path: document.getElementById('order_path').value,
+                path: document.getElementById('path').value
+            };
+
+            if (id) {
+                const index = projects.findIndex(p => p.id === id);
+                if (index !== -1) projects[index] = projectData;
+            } else {
+                projects.unshift(projectData);
+            }
+
+            localStorage.setItem('studio_projects', JSON.stringify(projects));
+            closeModal();
+            renderTable(projects);
+            updateStats();
+        }
+
+        function editProject(id) {
+            openModal(id);
+        }
+
+        function deleteProject(id) {
+            if (confirm('確定要刪除此專案紀錄嗎？')) {
+                projects = projects.filter(p => p.id !== id);
+                localStorage.setItem('studio_projects', JSON.stringify(projects));
+                renderTable(projects);
+                updateStats();
+            }
+        }
+
+        // 智慧型資料夾連結與開啟
+        function openFolderConnection(path) {
+            if (path.startsWith('http://') || path.startsWith('https://')) {
+                window.open(path, '_blank');
+            } else {
+                navigator.clipboard.writeText(path).then(() => {
+                    alert('【已自動複製訂單資料夾路徑】\n' + path + '\n\n💡 提示：因瀏覽器安全限制，請直接按 Ctrl+V 貼到檔案總管網址列即可直接開啟檢視細節！');
+                }).catch(err => {
+                    console.error('複製失敗: ', err);
+                });
+            }
+        }
+
+        function exportCSV() {
+            let csv = '\uFEFF專案名稱,位置,未稅金額,含稅金額,計稅類別,報價日期,PO日期,狀態,發票狀態,收款狀態,備註,訂單路徑,作業路徑\n';
+            projects.forEach(p => {
+                const amounts = getProjectAmounts(p);
+                const taxTypeLabel = p.tax_type === 'taxed' ? '含稅' : '未稅';
+                csv += `"${p.name}","${p.location}","${amounts.untaxed}","${amounts.taxed}","${taxTypeLabel}","${p.quote_date}","${p.po_date}","${p.status}","${p.invoice_status}","${p.payment_status}","${p.remarks}","${p.order_path}","${p.path}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `草圖設計工作室_專案管理表_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
